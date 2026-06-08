@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { THEMES } from "../lib/vocab";
+import { loseAllLives } from "./helpers";
 
 const LAST_THEME = THEMES[THEMES.length - 1].name; // bottom of the menu grid
 
@@ -71,17 +72,7 @@ test.describe("responsive layout & scroll", () => {
     await page.getByRole("button", { name: THEMES[3].name }).click(); // numbers
     await expect(page.getByTestId("play")).toBeVisible();
 
-    for (let i = 0; i < 5; i++) {
-      const bubble = page.locator('[data-testid="bubble"][data-state="falling"]');
-      await expect(bubble).toBeVisible();
-      await bubble.evaluate((el) => (el as HTMLElement).click());
-      const input = page.getByTestId("answer-input");
-      await input.fill("nope");
-      await input.press("Enter");
-      await expect(page.getByTestId("feedback")).toBeVisible();
-    }
-
-    await expect(page.getByTestId("gameover")).toBeVisible();
+    await loseAllLives(page);
     const changeSetup = page.getByRole("button", { name: "Change setup" });
     await changeSetup.scrollIntoViewIfNeeded();
     await expect(changeSetup).toBeInViewport();

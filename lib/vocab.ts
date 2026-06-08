@@ -362,3 +362,21 @@ export function matches(input: string, expected: string): boolean {
   candidates.push(normalize(expected));
   return candidates.includes(got);
 }
+
+// Weighted random index. `weights[i]` is the relative chance of picking i;
+// a weight of 0 excludes that entry (used to avoid immediate repeats and to
+// favour words the player keeps missing). `rng` is injectable for testing.
+export function pickIndex(weights: number[], rng: () => number = Math.random): number {
+  const total = weights.reduce((a, b) => a + (b > 0 ? b : 0), 0);
+  if (total <= 0) return 0;
+  let r = rng() * total;
+  for (let i = 0; i < weights.length; i++) {
+    if (weights[i] > 0) {
+      r -= weights[i];
+      if (r < 0) return i;
+    }
+  }
+  // Fallback: last entry with a positive weight.
+  for (let i = weights.length - 1; i >= 0; i--) if (weights[i] > 0) return i;
+  return 0;
+}

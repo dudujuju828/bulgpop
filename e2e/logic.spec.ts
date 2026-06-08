@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { matches, normalize, THEMES } from "../lib/vocab";
+import { matches, normalize, pickIndex, THEMES } from "../lib/vocab";
 
 test.describe("normalize", () => {
   test("lowercases, trims, collapses spaces, drops punctuation", () => {
@@ -33,6 +33,26 @@ test.describe("matches", () => {
     expect(matches("arm", "hand / arm")).toBe(true);
     expect(matches("foot", "leg / foot")).toBe(true);
     expect(matches("wrist", "hand / arm")).toBe(false);
+  });
+});
+
+test.describe("pickIndex (adaptive selection)", () => {
+  test("weight 0 entries are never chosen", () => {
+    // only index 2 has positive weight → always picked, for any rng value
+    for (const r of [0, 0.25, 0.5, 0.75, 0.999]) {
+      expect(pickIndex([0, 0, 5, 0], () => r)).toBe(2);
+    }
+  });
+
+  test("picks proportionally to weight", () => {
+    // weights [1,3]: total 4. rng<0.25 -> idx0, else idx1
+    expect(pickIndex([1, 3], () => 0.1)).toBe(0);
+    expect(pickIndex([1, 3], () => 0.5)).toBe(1);
+    expect(pickIndex([1, 3], () => 0.99)).toBe(1);
+  });
+
+  test("all-zero weights fall back to index 0", () => {
+    expect(pickIndex([0, 0, 0], () => 0.5)).toBe(0);
   });
 });
 

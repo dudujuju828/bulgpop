@@ -21,6 +21,9 @@
 /.next/
 /out/
 
+# generated service worker (rebuilt by `npm run build`)
+/public/sw.js
+
 # production
 /build
 

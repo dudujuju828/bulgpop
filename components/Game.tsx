@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { THEMES, matches, type Theme, type Word } from "@/lib/vocab";
+import { THEMES, matches, pickIndex, type Theme, type Word } from "@/lib/vocab";
 import styles from "./Game.module.css";
 
 const BUBBLE = 132; // bubble diameter in px
@@ -23,8 +23,14 @@ type DirMode = (typeof DIRECTIONS)[number]["id"];
 type Dir = "en2bg" | "bg2en";
 
 type Phase = "menu" | "playing" | "gameover";
-type BubbleState = "falling" | "answering" | "feedback";
+// "correcting" = player must retype a word they got wrong before continuing.
+type BubbleState = "falling" | "answering" | "feedback" | "correcting";
 type FeedbackType = "correct" | "wrong" | "miss";
+
+// Adaptive selection weights: missed words climb toward MAX so they recur.
+const WEIGHT_BASE = 1;
+const WEIGHT_MAX = 6;
+const WEIGHT_ON_MISS = 2;
 
 type Round = {
   id: number;
@@ -60,10 +66,13 @@ export default function Game() {
   const [bubbleState, setBubbleState] = useState<BubbleState>("falling");
   const [y, setY] = useState(-BUBBLE);
   const [input, setInput] = useState("");
+  const [correctionInput, setCorrectionInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const playRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const correctionRef = useRef<HTMLInputElement>(null);
+  const weightsRef = useRef<Map<string, number>>(new Map());
   const yRef = useRef(-BUBBLE);
   const speedRef = useRef(55);
   const roundCountRef = useRef(0);
@@ -168,12 +177,13 @@ export default function Game() {
         cfg.max,
       );
 
-      let word = t.words[Math.floor(Math.random() * t.words.length)];
-      if (t.words.length > 1) {
-        while (word.en === lastWordRef.current) {
-          word = t.words[Math.floor(Math.random() * t.words.length)];
-        }
-      }
+      // Weighted pick: struggled words weigh more; the previous word is
+      // excluded (weight 0) so the same bubble never appears twice in a row.
+      const weights = t.words.map((w) => {
+        if (w.en === lastWordRef.current && t.words.length > 1) return 0;
+        return weightsRef.current.get(w.en) ?? WEIGHT_BASE;
+      });
+      const word = t.words[pickIndex(weights)];
       lastWordRef.current = word.en;
 
       const dir: Dir =
@@ -214,6 +224,7 @@ export default function Game() {
       roundCountRef.current = 0;
       gameOverRef.current = false;
       lastWordRef.current = "";
+      weightsRef.current = new Map();
       statsRef.current = { seen: 0, correct: 0, missed: [] };
       setPhase("playing");
       spawn(t);
@@ -225,25 +236,37 @@ export default function Game() {
   const resolveRound = useCallback(
     (type: FeedbackType, typed: string) => {
       if (!round) return;
+      const en = round.word.en;
+      const w = weightsRef.current;
       statsRef.current.seen += 1;
+      setFeedback({ type, word: round.word, dir: round.dir, typed });
+
       if (type === "correct") {
         statsRef.current.correct += 1;
+        w.set(en, Math.max(WEIGHT_BASE, (w.get(en) ?? WEIGHT_BASE) - 1));
         const pts = 10 + Math.min(streak, 10);
         setScore((s) => s + pts);
         setStreak((st) => st + 1);
-      } else {
-        statsRef.current.missed.push({ word: round.word, dir: round.dir, type });
-        setStreak(0);
-        setLives((l) => {
-          const nl = l - 1;
-          gameOverRef.current = nl <= 0;
-          return nl;
-        });
+        setBubbleState("feedback");
+        return;
       }
-      setFeedback({ type, word: round.word, dir: round.dir, typed });
-      setBubbleState("feedback");
+
+      // wrong or miss: lose a life, boost this word, force a retype (unless
+      // this was the final life — then end the run).
+      statsRef.current.missed.push({ word: round.word, dir: round.dir, type });
+      w.set(en, Math.min(WEIGHT_MAX, (w.get(en) ?? WEIGHT_BASE) + WEIGHT_ON_MISS));
+      setStreak(0);
+      const over = lives - 1 <= 0;
+      gameOverRef.current = over;
+      setLives(lives - 1);
+      if (over) {
+        setBubbleState("feedback");
+      } else {
+        setCorrectionInput("");
+        setBubbleState("correcting");
+      }
     },
-    [round, streak],
+    [round, streak, lives],
   );
 
   // Keep the latest-value refs current after every render.
@@ -257,7 +280,8 @@ export default function Game() {
 
   // ---- falling animation (runs while falling AND while answering) -------
   useEffect(() => {
-    if (phase !== "playing" || bubbleState === "feedback") return;
+    if (phase !== "playing") return;
+    if (bubbleState !== "falling" && bubbleState !== "answering") return;
     let raf = 0;
     let last: number | null = null;
     const step = (ts: number) => {
@@ -312,9 +336,10 @@ export default function Game() {
     };
   }, [bubbleState, feedback]);
 
-  // ---- focus input ------------------------------------------------------
+  // ---- focus the active input ------------------------------------------
   useEffect(() => {
     if (bubbleState === "answering") inputRef.current?.focus();
+    else if (bubbleState === "correcting") correctionRef.current?.focus();
   }, [bubbleState]);
 
   // ---- actions ----------------------------------------------------------
@@ -342,6 +367,25 @@ export default function Game() {
       resolveRound(ok ? "correct" : "wrong", input);
     },
     [bubbleState, round, input, beep, resolveRound],
+  );
+
+  // Retype-to-continue after a wrong/missed word (the answer is shown).
+  const submitCorrection = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (bubbleState !== "correcting" || !feedback) return;
+      const target =
+        feedback.dir === "en2bg" ? feedback.word.bg : feedback.word.en;
+      if (matches(correctionInput, target)) {
+        beep(660, 0.1, "triangle", 0.18);
+        nextRound();
+      } else {
+        beep(150, 0.22, "sawtooth", 0.18);
+        setCorrectionInput("");
+        correctionRef.current?.focus();
+      }
+    },
+    [bubbleState, feedback, correctionInput, beep, nextRound],
   );
 
   const toggleMute = useCallback(() => {
@@ -479,7 +523,7 @@ export default function Game() {
           )}
 
           <div className={styles.play} ref={playRef} data-testid="play">
-            {round && bubbleState !== "feedback" && (
+            {round && (bubbleState === "falling" || bubbleState === "answering") && (
               <button
                 key={round.id}
                 className={`${styles.bubble} ${styles[round.color]} ${
@@ -497,39 +541,73 @@ export default function Game() {
               </button>
             )}
 
-            {feedback && bubbleState === "feedback" && (
-              <div
-                className={`${styles.feedback} ${styles[`fb_${feedback.type}`]}`}
-                data-testid="feedback"
-                data-feedback={feedback.type}
-              >
-                <span className={styles.fbBadge}>
-                  {feedback.type === "correct"
-                    ? "✓ pop!"
-                    : feedback.type === "miss"
-                      ? "dropped!"
-                      : "not quite"}
-                </span>
-                <span className={styles.fbEn}>{feedback.word.en}</span>
-                <span className={styles.fbBgRow}>
-                  <span className={styles.fbBg}>{feedback.word.bg}</span>
-                  {ttsAvailable() && (
-                    <button
-                      className={styles.speakSm}
-                      onClick={() => speakBg(feedback.word.cyr)}
-                      aria-label="Hear it"
-                      type="button"
-                    >
-                      🔊
-                    </button>
+            {feedback &&
+              (bubbleState === "feedback" || bubbleState === "correcting") && (
+                <div
+                  className={`${styles.feedback} ${styles[`fb_${feedback.type}`]}`}
+                  data-testid="feedback"
+                  data-feedback={feedback.type}
+                  data-mode={bubbleState}
+                >
+                  <span className={styles.fbBadge}>
+                    {feedback.type === "correct"
+                      ? "✓ pop!"
+                      : feedback.type === "miss"
+                        ? "dropped!"
+                        : "not quite"}
+                  </span>
+                  <span className={styles.fbEn} data-testid="fb-en">
+                    {feedback.word.en}
+                  </span>
+                  <span className={styles.fbBgRow}>
+                    <span className={styles.fbBg} data-testid="fb-bg">
+                      {feedback.word.bg}
+                    </span>
+                    {ttsAvailable() && (
+                      <button
+                        className={styles.speakSm}
+                        onClick={() => speakBg(feedback.word.cyr)}
+                        aria-label="Hear it"
+                        type="button"
+                      >
+                        🔊
+                      </button>
+                    )}
+                  </span>
+                  <span className={styles.fbCyr}>{feedback.word.cyr}</span>
+                  {feedback.type === "wrong" && feedback.typed && (
+                    <span className={styles.fbTyped}>
+                      you wrote: {feedback.typed}
+                    </span>
                   )}
-                </span>
-                <span className={styles.fbCyr}>{feedback.word.cyr}</span>
-                {feedback.type === "wrong" && feedback.typed && (
-                  <span className={styles.fbTyped}>you wrote: {feedback.typed}</span>
-                )}
-              </div>
-            )}
+
+                  {bubbleState === "correcting" && (
+                    <form onSubmit={submitCorrection} className={styles.correction}>
+                      <span className={styles.correctionLabel}>
+                        ✍️ type the {feedback.dir === "en2bg" ? "Bulgarian" : "English"}{" "}
+                        to continue
+                      </span>
+                      <div className={styles.answerForm}>
+                        <input
+                          ref={correctionRef}
+                          className={styles.input}
+                          value={correctionInput}
+                          onChange={(e) => setCorrectionInput(e.target.value)}
+                          placeholder="retype it…"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          data-testid="correction-input"
+                        />
+                        <button type="submit" className={styles.go}>
+                          continue →
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
           </div>
 
           <div className={styles.dock}>
@@ -575,6 +653,9 @@ export default function Game() {
             )}
             {bubbleState === "feedback" && (
               <p className={styles.hint}>next bubble incoming…</p>
+            )}
+            {bubbleState === "correcting" && (
+              <p className={styles.hint}>retype the word above to lock it in 🔒</p>
             )}
           </div>
         </section>

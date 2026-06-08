@@ -19,11 +19,19 @@ Bulgarian is written with normal Latin letters here, so _"behind us"_ is
   silently if no Bulgarian voice is installed.
 - **Learn on every round** — feedback shows the correct Latin spelling _and_ the
   Cyrillic.
+- **Retype to continue** — when you get a word wrong or let it drop, you must
+  type it correctly before the next bubble. Active recall, not just a flash.
+- **Adaptive practice** — missed words are weighted to reappear sooner, so the
+  game drills your weak spots instead of pure chance (see `pickIndex` in
+  [`lib/vocab.ts`](lib/vocab.ts)).
 - **End-of-game recap** — accuracy %, words seen, and a "words to review" list of
   everything you missed.
 - **Nine themes** — Everyday phrases, Food & drink, Travel & places, Numbers &
   time, Family & people, Body & health, Weather & nature, Shopping & money, and
   Common verbs (~30 words each).
+- **Installable & offline (PWA)** — install it to your home screen and play with
+  no connection (great on a plane). A service worker precaches the app shell and
+  assets at build time.
 
 ## Run it
 
