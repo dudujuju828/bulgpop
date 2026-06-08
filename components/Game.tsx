@@ -77,6 +77,18 @@ export default function Game() {
     missed: [],
   });
 
+  // Latest-value refs so the rAF loop and feedback timer never need to restart
+  // when unrelated state (mute, score, …) changes.
+  const beepRef = useRef<(f: number, d: number, t?: OscillatorType, v?: number) => void>(
+    () => {},
+  );
+  const speakBgRef = useRef<(cyr: string) => void>(() => {});
+  const resolveRoundRef = useRef<(type: FeedbackType, typed: string) => void>(
+    () => {},
+  );
+  const nextRoundRef = useRef<() => void>(() => {});
+  const scoreRef = useRef(0);
+
   // ---- sound effects (WebAudio) -----------------------------------------
   const beep = useCallback(
     (freq: number, dur: number, type: OscillatorType = "sine", vol = 0.18) => {
@@ -87,6 +99,7 @@ export default function Game() {
           (window as unknown as { webkitAudioContext: typeof AudioContext })
             .webkitAudioContext;
         const ctx = audioRef.current ?? (audioRef.current = new Ctx());
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = type;
@@ -233,6 +246,15 @@ export default function Game() {
     [round, streak],
   );
 
+  // Keep the latest-value refs current after every render.
+  useEffect(() => {
+    beepRef.current = beep;
+    speakBgRef.current = speakBg;
+    resolveRoundRef.current = resolveRound;
+    nextRoundRef.current = nextRound;
+    scoreRef.current = score;
+  });
+
   // ---- falling animation (runs while falling AND while answering) -------
   useEffect(() => {
     if (phase !== "playing" || bubbleState === "feedback") return;
@@ -252,8 +274,8 @@ export default function Game() {
       if (next >= floor) {
         yRef.current = floor;
         setY(floor);
-        beep(150, 0.3, "sawtooth", 0.22);
-        resolveRound("miss", "");
+        beepRef.current(150, 0.3, "sawtooth", 0.22);
+        resolveRoundRef.current("miss", "");
         return;
       }
       yRef.current = next;
@@ -262,12 +284,12 @@ export default function Game() {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [phase, bubbleState, round, beep, resolveRound]);
+  }, [phase, bubbleState, round]);
 
   // ---- feedback → next round / game over --------------------------------
   useEffect(() => {
     if (bubbleState !== "feedback" || !feedback) return;
-    const sp = setTimeout(() => speakBg(feedback.word.cyr), 250);
+    const sp = setTimeout(() => speakBgRef.current(feedback.word.cyr), 250);
     const dur = feedback.type === "correct" ? 950 : 2000;
     const t = setTimeout(() => {
       if (gameOverRef.current) {
@@ -277,18 +299,18 @@ export default function Game() {
           missed: [...statsRef.current.missed],
         });
         setBest((b) => {
-          const nb = Math.max(b, score);
+          const nb = Math.max(b, scoreRef.current);
           localStorage.setItem("bulgapop-best", String(nb));
           return nb;
         });
         setPhase("gameover");
-      } else nextRound();
+      } else nextRoundRef.current();
     }, dur);
     return () => {
       clearTimeout(t);
       clearTimeout(sp);
     };
-  }, [bubbleState, feedback, nextRound, speakBg, score]);
+  }, [bubbleState, feedback]);
 
   // ---- focus input ------------------------------------------------------
   useEffect(() => {
@@ -308,6 +330,7 @@ export default function Game() {
     (e: React.FormEvent) => {
       e.preventDefault();
       if (bubbleState !== "answering" || !round) return;
+      if (!input.trim()) return; // ignore accidental empty Enter
       const expected = round.dir === "en2bg" ? round.word.bg : round.word.en;
       const ok = matches(input, expected);
       if (ok) {
@@ -351,7 +374,7 @@ export default function Game() {
       <DecorBubbles />
 
       {phase === "menu" && (
-        <section className={styles.menu}>
+        <section className={styles.menu} data-testid="menu">
           <p className={styles.kicker}>пук! · pop &amp; learn</p>
           <h1 className={styles.title}>
             Bulga<span className={styles.pop}>Pop</span>
@@ -370,6 +393,7 @@ export default function Game() {
                   <button
                     key={id}
                     className={`${styles.seg} ${diffId === id ? styles.segOn : ""}`}
+                    aria-pressed={diffId === id}
                     onClick={() => setDiffId(id)}
                   >
                     <span>{DIFFICULTIES[id].label}</span>
@@ -385,6 +409,7 @@ export default function Game() {
                   <button
                     key={d.id}
                     className={`${styles.seg} ${dirMode === d.id ? styles.segOn : ""}`}
+                    aria-pressed={dirMode === d.id}
                     onClick={() => setDirMode(d.id)}
                   >
                     <span>{d.label}</span>
@@ -425,10 +450,12 @@ export default function Game() {
               {theme.name}
             </div>
             <div className={styles.scoreBox}>
-              <span className={styles.scoreNum}>{score}</span>
+              <span className={styles.scoreNum} data-testid="score">
+                {score}
+              </span>
               <span className={styles.scoreLabel}>score</span>
             </div>
-            <div className={styles.lives}>
+            <div className={styles.lives} data-testid="lives" data-lives={lives}>
               {Array.from({ length: maxLives }).map((_, i) => (
                 <span
                   key={i}
@@ -451,7 +478,7 @@ export default function Game() {
             <div className={styles.streak}>🔥 {streak} streak</div>
           )}
 
-          <div className={styles.play} ref={playRef}>
+          <div className={styles.play} ref={playRef} data-testid="play">
             {round && bubbleState !== "feedback" && (
               <button
                 key={round.id}
@@ -461,6 +488,8 @@ export default function Game() {
                 style={{ left: `${round.x}%`, top: `${y}px` }}
                 onClick={popBubble}
                 aria-label="Pop the bubble"
+                data-testid="bubble"
+                data-state={bubbleState}
                 disabled={bubbleState !== "falling"}
               >
                 <span className={styles.gloss} aria-hidden />
@@ -469,7 +498,11 @@ export default function Game() {
             )}
 
             {feedback && bubbleState === "feedback" && (
-              <div className={`${styles.feedback} ${styles[`fb_${feedback.type}`]}`}>
+              <div
+                className={`${styles.feedback} ${styles[`fb_${feedback.type}`]}`}
+                data-testid="feedback"
+                data-feedback={feedback.type}
+              >
                 <span className={styles.fbBadge}>
                   {feedback.type === "correct"
                     ? "✓ pop!"
@@ -507,7 +540,9 @@ export default function Game() {
               <div className={styles.answer}>
                 <div className={styles.promptRow}>
                   <span className={styles.askLabel}>{askLabel}</span>
-                  <span className={styles.prompt}>{prompt}</span>
+                  <span className={styles.prompt} data-testid="prompt">
+                    {prompt}
+                  </span>
                   {round.dir === "bg2en" && ttsAvailable() && (
                     <button
                       className={styles.speakSm}
@@ -526,6 +561,7 @@ export default function Game() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="type here…"
+                    data-testid="answer-input"
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -545,7 +581,7 @@ export default function Game() {
       )}
 
       {phase === "gameover" && theme && (
-        <section className={styles.menu}>
+        <section className={styles.menu} data-testid="gameover">
           <p className={styles.kicker}>game over</p>
           <h1 className={styles.title}>
             {score >= best && score > 0 ? "New best! 🎉" : "Nice run!"}

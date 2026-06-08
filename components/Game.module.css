@@ -320,6 +320,7 @@
 .play {
   position: relative;
   flex: 1;
+  min-height: 280px;
   margin: 4px 8px 18px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.32);

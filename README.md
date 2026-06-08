@@ -40,6 +40,21 @@ Next.js (App Router) + React + TypeScript. No external game/UI libraries — the
 bubbles, animations, and sound are all hand-rolled. Vocabulary lives in
 [`lib/vocab.ts`](lib/vocab.ts) — edit that file to add words or themes.
 
+## Tests
+
+End-to-end and logic tests run with Playwright:
+
+```bash
+npm test
+```
+
+The config builds and serves the app automatically (or reuses a server already
+running on :3000). `e2e/flows.spec.ts` drives the real game in a browser —
+popping bubbles, scoring, wrong/miss/empty-submit handling, the keep-falling
+miss, and the full lose → recap → play-again → menu loop. `e2e/logic.spec.ts`
+covers answer matching and vocabulary integrity (every word accepts its own
+answer in both directions).
+
 ## Answer checking
 
 Answers are matched exactly, after trimming, lowercasing, dropping punctuation,
