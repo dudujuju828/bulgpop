@@ -1,18 +1,29 @@
 # BulgaPop 🫧
 
 A tiny browser game for learning Bulgarian vocabulary. Pick a theme, bubbles
-fall from the top — **pop one before it hits the bottom**, then type the word in
-Bulgarian. Bulgarian is written with normal Latin letters here, so _"behind us"_
-is `zad nas`.
+fall from the top — **pop one and type the word before it hits the bottom**.
+Bulgarian is written with normal Latin letters here, so _"behind us"_ is
+`zad nas`.
 
-- **Pop, then type** — click a falling bubble to reveal the English word and an
-  input box appears. Type the Bulgarian and hit Enter.
-- **3 lives, endless** — miss a bubble or get it wrong and you lose a life. Speed
+- **Pop, then type — under pressure** — click a falling bubble to reveal the
+  prompt and an input box. The bubble **keeps falling while you type**; if it
+  reaches the bottom before you submit, you lose a life.
+- **Lives + endless** — miss or answer wrong and you lose a life. Fall speed
   ramps up the longer you survive. Beat your high score (saved locally).
-- **Learn on a miss** — every round shows the correct Latin spelling _and_ the
-  Cyrillic, so you pick it up as you go.
-- **Four themes** — Everyday phrases, Food & drink, Travel & places, Numbers &
-  time.
+- **Difficulty modes** — Easy (slow, 5 lives), Normal (3 lives), Hard (fast,
+  2 lives, steep ramp).
+- **Direction modes** — EN → BG (type Bulgarian), BG → EN (type English), or
+  Mixed (random each bubble).
+- **Pronunciation** — Bulgarian words are spoken aloud via browser text-to-speech
+  (auto where it won't spoil the answer, plus a replay 🔊 button). Falls back
+  silently if no Bulgarian voice is installed.
+- **Learn on every round** — feedback shows the correct Latin spelling _and_ the
+  Cyrillic.
+- **End-of-game recap** — accuracy %, words seen, and a "words to review" list of
+  everything you missed.
+- **Nine themes** — Everyday phrases, Food & drink, Travel & places, Numbers &
+  time, Family & people, Body & health, Weather & nature, Shopping & money, and
+  Common verbs (~30 words each).
 
 ## Run it
 
@@ -31,6 +42,7 @@ bubbles, animations, and sound are all hand-rolled. Vocabulary lives in
 
 ## Answer checking
 
-Answers are matched exactly, after trimming, lowercasing, and collapsing extra
-spaces. To accept alternate spellings, change `normalize` in `lib/vocab.ts` or
-store multiple accepted forms per word.
+Answers are matched exactly, after trimming, lowercasing, dropping punctuation,
+and collapsing extra spaces. A `/` in a vocabulary value marks alternatives, so
+`hand / arm` accepts either word. To loosen matching further, edit `normalize` /
+`matches` in `lib/vocab.ts`.

@@ -353,6 +353,22 @@
 .bubble:active {
   transform: translateX(-50%) scale(0.92);
 }
+.bubbleActive {
+  cursor: default;
+  animation: bob 2.4s ease-in-out infinite, activeGlow 0.9s ease-in-out infinite;
+}
+.bubbleActive:active {
+  transform: translateX(-50%);
+}
+@keyframes activeGlow {
+  50% {
+    box-shadow:
+      inset -8px -10px 24px rgba(0, 0, 0, 0.12),
+      inset 10px 12px 22px rgba(255, 255, 255, 0.8),
+      0 0 0 8px rgba(255, 255, 255, 0.45),
+      0 14px 30px rgba(0, 0, 0, 0.2);
+  }
+}
 @keyframes bob {
   50% {
     margin-left: 10px;
@@ -389,23 +405,6 @@
   background: radial-gradient(circle at 34% 30%, #ddd0ff, var(--pop-violet) 74%);
 }
 
-/* ---------- answer card ---------- */
-.answerCard {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: min(420px, 86%);
-  height: fit-content;
-  padding: 30px 26px;
-  border-radius: 26px;
-  background: white;
-  box-shadow: 0 24px 60px rgba(70, 40, 130, 0.25);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  animation: popin 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
 @keyframes popin {
   from {
     opacity: 0;
@@ -416,21 +415,61 @@
     transform: scale(1);
   }
 }
+
+/* ---------- answer dock ---------- */
+.dock {
+  min-height: 116px;
+  margin: 0 8px 14px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 14px 34px rgba(70, 40, 130, 0.14);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.hint {
+  text-align: center;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: popin 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.promptRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .askLabel {
-  font-size: 0.72rem;
-  letter-spacing: 0.2em;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 800;
   color: var(--ink-soft);
 }
-.enWord {
+.prompt {
   font-family: var(--font-display), sans-serif;
   font-weight: 700;
-  font-size: clamp(1.8rem, 7vw, 2.6rem);
+  font-size: clamp(1.5rem, 5.5vw, 2.1rem);
   color: var(--ink);
-  text-align: center;
   line-height: 1.05;
-  margin-bottom: 8px;
+}
+.speakSm {
+  font-size: 1rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(138, 92, 255, 0.12);
+  transition: transform 0.12s, background 0.12s;
+}
+.speakSm:hover {
+  transform: scale(1.12);
+  background: rgba(138, 92, 255, 0.22);
 }
 .answerForm {
   display: flex;
@@ -520,6 +559,11 @@
   font-weight: 700;
   color: var(--ink-soft);
 }
+.fbBgRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .fbBg {
   font-family: var(--font-display), sans-serif;
   font-weight: 700;
@@ -540,4 +584,146 @@
   color: var(--ink-soft);
   text-decoration: line-through;
   opacity: 0.7;
+}
+
+/* ---------- menu: difficulty / direction options ---------- */
+.options {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+.optGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.optLabel {
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.segmented {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
+}
+.seg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  color: var(--ink-soft);
+  transition: background 0.15s, color 0.15s, transform 0.12s;
+}
+.seg span {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.seg small {
+  font-size: 0.62rem;
+  font-weight: 700;
+  opacity: 0.7;
+}
+.seg:hover {
+  transform: translateY(-1px);
+}
+.segOn {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 6px 16px rgba(70, 40, 130, 0.16);
+}
+
+/* ---------- game over: stats + review ---------- */
+.statRow {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 20px 0 4px;
+}
+.statCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 96px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 10px 24px rgba(70, 40, 130, 0.12);
+}
+.statNum {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 1.7rem;
+  color: var(--ink);
+}
+.statLbl {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.missedBox {
+  margin: 22px auto 0;
+  max-width: 460px;
+  text-align: left;
+}
+.missedTitle {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--ink);
+  margin-bottom: 10px;
+  text-align: center;
+}
+.missedList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 230px;
+  overflow-y: auto;
+}
+.missedItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+}
+.missedEn {
+  font-weight: 800;
+  color: var(--ink-soft);
+  min-width: 90px;
+}
+.missedArrow {
+  color: var(--ink-soft);
+  opacity: 0.5;
+}
+.missedBg {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 600;
+  color: var(--ink);
+}
+.missedCyr {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--pop-violet);
+}
+.missedMore {
+  text-align: center;
+  margin-top: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
 }
