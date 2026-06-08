@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BulgaPop 🫧
 
-## Getting Started
+A tiny browser game for learning Bulgarian vocabulary. Pick a theme, bubbles
+fall from the top — **pop one before it hits the bottom**, then type the word in
+Bulgarian. Bulgarian is written with normal Latin letters here, so _"behind us"_
+is `zad nas`.
 
-First, run the development server:
+- **Pop, then type** — click a falling bubble to reveal the English word and an
+  input box appears. Type the Bulgarian and hit Enter.
+- **3 lives, endless** — miss a bubble or get it wrong and you lose a life. Speed
+  ramps up the longer you survive. Beat your high score (saved locally).
+- **Learn on a miss** — every round shows the correct Latin spelling _and_ the
+  Cyrillic, so you pick it up as you go.
+- **Four themes** — Everyday phrases, Food & drink, Travel & places, Numbers &
+  time.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Next.js (App Router) + React + TypeScript. No external game/UI libraries — the
+bubbles, animations, and sound are all hand-rolled. Vocabulary lives in
+[`lib/vocab.ts`](lib/vocab.ts) — edit that file to add words or themes.
 
-## Learn More
+## Answer checking
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Answers are matched exactly, after trimming, lowercasing, and collapsing extra
+spaces. To accept alternate spellings, change `normalize` in `lib/vocab.ts` or
+store multiple accepted forms per word.
