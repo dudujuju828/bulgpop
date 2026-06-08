@@ -38,7 +38,21 @@ type Round = {
   x: number; // percent
   color: (typeof COLORS)[number];
   dir: Dir;
+  size: number; // bubble diameter (px) — scales with prompt length
+  font: number; // prompt font-size (px) inside the bubble
 };
+
+// The prompt now lives *on* the bubble (so the on-screen keyboard can't hide
+// it on phones/tablets). Bigger prompts get a bigger bubble + smaller text.
+function bubbleMetrics(text: string): { size: number; font: number } {
+  const len = text.trim().length;
+  if (len <= 4) return { size: 124, font: 27 };
+  if (len <= 7) return { size: 138, font: 23 };
+  if (len <= 11) return { size: 154, font: 19 };
+  if (len <= 16) return { size: 172, font: 17 };
+  if (len <= 22) return { size: 192, font: 15 };
+  return { size: 208, font: 14 };
+}
 
 type Feedback = { type: FeedbackType; word: Word; dir: Dir; typed: string };
 type Missed = { word: Word; dir: Dir; type: "wrong" | "miss" };
@@ -72,6 +86,7 @@ export default function Game() {
   const playRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const correctionRef = useRef<HTMLInputElement>(null);
+  const sizeRef = useRef(BUBBLE); // current bubble diameter (for floor calc)
   const weightsRef = useRef<Map<string, number>>(new Map());
   const yRef = useRef(-BUBBLE);
   const speedRef = useRef(55);
@@ -167,6 +182,28 @@ export default function Game() {
     if (saved) setBest(saved);
   }, []);
 
+  // ---- keep the game sized to the *visible* viewport --------------------
+  // When the on-screen keyboard opens (iPad/phone portrait) the visual
+  // viewport shrinks; tracking it keeps the falling bubble and the input on
+  // screen instead of being hidden behind the keyboard.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const root = document.documentElement;
+    const update = () => {
+      const h = vv ? vv.height : window.innerHeight;
+      root.style.setProperty("--vvh", `${Math.round(h)}px`);
+    };
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+
   // ---- rounds -----------------------------------------------------------
   const spawn = useCallback(
     (t: Theme) => {
@@ -193,8 +230,12 @@ export default function Game() {
             : "bg2en"
           : dirMode;
 
-      yRef.current = -BUBBLE;
-      setY(-BUBBLE);
+      const promptText = dir === "en2bg" ? word.en : word.bg;
+      const { size, font } = bubbleMetrics(promptText);
+      sizeRef.current = size;
+
+      yRef.current = -size;
+      setY(-size);
       setInput("");
       setFeedback(null);
       setRound({
@@ -203,6 +244,8 @@ export default function Game() {
         x: 16 + Math.random() * 68,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         dir,
+        size,
+        font,
       });
       setBubbleState("falling");
     },
@@ -293,7 +336,7 @@ export default function Game() {
       if (last === null) last = ts;
       const dt = Math.min((ts - last) / 1000, 0.05);
       last = ts;
-      const floor = area.clientHeight - BUBBLE;
+      const floor = Math.max(8, area.clientHeight - sizeRef.current);
       const next = yRef.current + speedRef.current * dt;
       if (next >= floor) {
         yRef.current = floor;
@@ -529,15 +572,23 @@ export default function Game() {
                 className={`${styles.bubble} ${styles[round.color]} ${
                   bubbleState === "answering" ? styles.bubbleActive : ""
                 }`}
-                style={{ left: `${round.x}%`, top: `${y}px` }}
+                style={{
+                  left: `${round.x}%`,
+                  top: `${y}px`,
+                  width: round.size,
+                  height: round.size,
+                  ["--bubble-font" as string]: `${round.font}px`,
+                }}
                 onClick={popBubble}
-                aria-label="Pop the bubble"
+                aria-label={`Bubble: ${prompt}`}
                 data-testid="bubble"
                 data-state={bubbleState}
                 disabled={bubbleState !== "falling"}
               >
                 <span className={styles.gloss} aria-hidden />
-                {bubbleState === "falling" && <span className={styles.q}>?</span>}
+                <span className={styles.bubbleWord} data-testid="prompt">
+                  {prompt}
+                </span>
               </button>
             )}
 
@@ -612,15 +663,13 @@ export default function Game() {
 
           <div className={styles.dock}>
             {bubbleState === "falling" && (
-              <p className={styles.hint}>🫧 Click the bubble to pop it — quick!</p>
+              <p className={styles.hint}>🫧 Tap the bubble, then type the answer!</p>
             )}
             {bubbleState === "answering" && round && (
               <div className={styles.answer}>
                 <div className={styles.promptRow}>
-                  <span className={styles.askLabel}>{askLabel}</span>
-                  <span className={styles.prompt} data-testid="prompt">
-                    {prompt}
-                  </span>
+                  <span className={styles.askLabel}>{askLabel}:</span>
+                  <span className={styles.promptMini}>{prompt}</span>
                   {round.dir === "bg2en" && ttsAvailable() && (
                     <button
                       className={styles.speakSm}

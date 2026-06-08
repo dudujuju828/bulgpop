@@ -224,10 +224,14 @@
   position: relative;
   z-index: 2;
   width: min(760px, 96vw);
+  /* Track the *visible* viewport so the on-screen keyboard never hides the
+     play area or the input (see the --vvh effect in Game.tsx). */
   height: 100vh;
   height: 100dvh;
+  height: var(--vvh, 100dvh);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .hud {
@@ -325,7 +329,7 @@
 .play {
   position: relative;
   flex: 1;
-  min-height: 220px;
+  min-height: 170px;
   margin: 4px 8px 18px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.32);
@@ -391,12 +395,22 @@
   filter: blur(2px);
   transform: rotate(-18deg);
 }
-.q {
+.bubbleWord {
+  position: relative;
+  z-index: 1;
+  padding: 0 12%;
   font-family: var(--font-display), sans-serif;
-  font-weight: 700;
-  font-size: 3rem;
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  font-weight: 600;
+  font-size: var(--bubble-font, 22px);
+  line-height: 1.08;
+  text-align: center;
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.28),
+    0 0 1px rgba(0, 0, 0, 0.4);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
 }
 .pink {
   background: radial-gradient(circle at 34% 30%, #ffd3e2, var(--pop-pink) 72%);
@@ -462,6 +476,14 @@
   font-family: var(--font-display), sans-serif;
   font-weight: 700;
   font-size: clamp(1.5rem, 5.5vw, 2.1rem);
+  color: var(--ink);
+  line-height: 1.05;
+}
+/* small reminder of the word (the main prompt is now on the bubble) */
+.promptMini {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
   color: var(--ink);
   line-height: 1.05;
 }

@@ -42,6 +42,33 @@ test.describe("responsive layout & scroll", () => {
     });
   }
 
+  test("portrait: the word is on the bubble and stays visible while typing", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 820, height: 1180 }); // iPad portrait
+    await page.goto("/");
+    await page.getByRole("button", { name: "Easy" }).click();
+    await page.getByRole("button", { name: THEMES[3].name }).click(); // numbers
+    await expect(page.getByTestId("play")).toBeVisible();
+
+    // The prompt is rendered *inside* the bubble (not in a dock that the
+    // keyboard would cover).
+    const prompt = page.getByTestId("prompt");
+    await expect(prompt).toBeVisible();
+    const insideBubble = await prompt.evaluate(
+      (el) => !!el.closest('[data-testid="bubble"]'),
+    );
+    expect(insideBubble).toBe(true);
+
+    // Pop it; the input appears and the word is still on the (now active)
+    // bubble and within the viewport.
+    const bubble = page.locator('[data-testid="bubble"][data-state="falling"]');
+    await bubble.evaluate((el) => (el as HTMLElement).click());
+    await expect(page.getByTestId("answer-input")).toBeVisible();
+    await expect(page.getByTestId("prompt")).toBeVisible();
+    await expect(page.getByTestId("prompt")).toBeInViewport();
+  });
+
   test("in-game screen fits the viewport with no page scroll", async ({
     page,
   }) => {
