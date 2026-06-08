@@ -26,9 +26,15 @@ Bulgarian is written with normal Latin letters here, so _"behind us"_ is
   [`lib/vocab.ts`](lib/vocab.ts)).
 - **End-of-game recap** — accuracy %, words seen, and a "words to review" list of
   everything you missed.
-- **Nine themes** — Everyday phrases, Food & drink, Travel & places, Numbers &
-  time, Family & people, Body & health, Weather & nature, Shopping & money, and
-  Common verbs (~30 words each).
+- **50+ themes, 1,500+ words** — everyday phrases, food & drink, travel, numbers,
+  family, body, weather, shopping, verbs, colors, animals, the home, jobs, tech,
+  emotions, adjectives, sports, school, the kitchen, the city, nature, grammar
+  (pronouns / prepositions / little words), restaurant, transport, money,
+  calendar, clothing, materials, survival phrases, music, the garden, health,
+  the office, holidays, fruit & veg, drinks, personality, the sea, the bathroom,
+  Bulgarian specialties, tools, science, hotels, the airport, ordinals, daily
+  routine, countries, cleaning, wild animals, coding, communication, quantities,
+  senses, public signs — and more (~26 words each).
 - **Installable & offline (PWA)** — install it to your home screen and play with
   no connection (great on a plane). A service worker precaches the app shell and
   assets at build time.
