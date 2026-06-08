@@ -26,7 +26,7 @@ Bulgarian is written with normal Latin letters here, so _"behind us"_ is
   [`lib/vocab.ts`](lib/vocab.ts)).
 - **End-of-game recap** — accuracy %, words seen, and a "words to review" list of
   everything you missed.
-- **85+ themes, 2,200+ words** — everyday phrases, food & drink, travel, numbers,
+- **100 themes, 2,600+ words** — everyday phrases, food & drink, travel, numbers,
   family, body, weather, shopping, verbs, colors, animals, the home, jobs, tech,
   emotions, adjectives, sports, school, the kitchen, the city, nature, grammar
   (pronouns / prepositions / little words), restaurant, transport, money,
