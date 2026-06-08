@@ -49,11 +49,16 @@ npm test
 ```
 
 The config builds and serves the app automatically (or reuses a server already
-running on :3000). `e2e/flows.spec.ts` drives the real game in a browser —
-popping bubbles, scoring, wrong/miss/empty-submit handling, the keep-falling
-miss, and the full lose → recap → play-again → menu loop. `e2e/logic.spec.ts`
-covers answer matching and vocabulary integrity (every word accepts its own
-answer in both directions).
+running on :3000).
+
+- `e2e/flows.spec.ts` — drives the real game in a browser: popping, scoring,
+  wrong/miss/empty-submit handling, the keep-falling miss, and the full lose →
+  recap → play-again → menu loop.
+- `e2e/logic.spec.ts` — answer matching and vocabulary integrity (every word
+  accepts its own answer in both directions).
+- `e2e/responsive.spec.ts` — at desktop/short/mobile viewports: the menu and
+  game-over screens scroll so every control is reachable and clickable, while
+  the in-game screen stays locked to the viewport (no page scroll).
 
 ## Answer checking
 

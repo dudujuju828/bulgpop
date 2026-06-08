@@ -20,12 +20,13 @@
 
 html,
 body {
-  height: 100%;
   max-width: 100vw;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 body {
+  min-height: 100vh;
+  min-height: 100dvh;
   color: var(--ink);
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -35,6 +36,8 @@ body {
     radial-gradient(1000px 700px at 110% 0%, #d9fbff 0%, transparent 50%),
     radial-gradient(900px 900px at 50% 120%, #efe3ff 0%, transparent 60%),
     linear-gradient(160deg, #fef0ff 0%, #e9f6ff 45%, #f3ecff 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 button {
