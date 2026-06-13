@@ -389,6 +389,24 @@ export default function Game() {
         raf = requestAnimationFrame(step);
         return;
       }
+      // While the user is typing, freeze the bubble within the visible play
+      // area. On mobile the on-screen keyboard shrinks --vvh which collapses
+      // the play area; without this the floor moves up and triggers a miss.
+      // Also ensures the bubble is visible if it was popped before entering
+      // the play area from the top (y < 0).
+      if (bubbleState === "answering") {
+        const minY = 0;
+        const maxY = Math.max(minY, area.clientHeight - sizeRef.current - 8);
+        let target = yRef.current;
+        if (target < minY) target = minY;
+        else if (target > maxY) target = maxY;
+        if (target !== yRef.current) {
+          yRef.current = target;
+          setY(target);
+        }
+        raf = requestAnimationFrame(step);
+        return;
+      }
       if (last === null) last = ts;
       const dt = Math.min((ts - last) / 1000, 0.05);
       last = ts;
@@ -438,8 +456,22 @@ export default function Game() {
 
   // ---- focus the active input ------------------------------------------
   useEffect(() => {
-    if (bubbleState === "answering") inputRef.current?.focus();
-    else if (bubbleState === "correcting") correctionRef.current?.focus();
+    if (bubbleState === "answering") {
+      inputRef.current?.focus();
+      // After the mobile keyboard animates in, scroll the input into view
+      // in case --vvh hasn't fully settled yet.
+      setTimeout(
+        () => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+        350,
+      );
+    } else if (bubbleState === "correcting") {
+      correctionRef.current?.focus();
+      // Scroll the correction form into view within the (overflow-y:auto) feedback panel.
+      setTimeout(
+        () => correctionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+        350,
+      );
+    }
   }, [bubbleState]);
 
   // ---- actions ----------------------------------------------------------

@@ -394,8 +394,8 @@
 .play {
   position: relative;
   flex: 1;
-  min-height: 170px;
-  margin: 4px 8px 18px;
+  min-height: 120px;
+  margin: 4px 8px 8px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.32);
   border: 2px solid rgba(255, 255, 255, 0.6);
@@ -431,6 +431,8 @@
 .bubbleActive {
   cursor: default;
   animation: bob 2.4s ease-in-out infinite, activeGlow 0.9s ease-in-out infinite;
+  /* Smooth vertical adjustment when --vvh changes (keyboard opens/closes) */
+  transition: transform 0.08s, top 0.28s ease-out;
 }
 .bubbleActive:active {
   transform: translateX(-50%);
@@ -503,9 +505,10 @@
 
 /* ---------- answer dock ---------- */
 .dock {
-  min-height: 116px;
-  margin: 0 8px 14px;
-  padding: 16px 18px;
+  min-height: 96px;
+  margin: 0 8px 0;
+  /* bottom padding absorbs the iPhone home-bar safe area inset */
+  padding: 12px 18px max(12px, env(safe-area-inset-bottom));
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.78);
   box-shadow: 0 14px 34px rgba(70, 40, 130, 0.14);
