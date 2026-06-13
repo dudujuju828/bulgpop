@@ -26,14 +26,10 @@ export async function start(
 }
 
 export const fallingBubble = (page: Page): Locator =>
-  page.locator('[data-testid="bubble"][data-state="falling"]');
+  page.locator('[data-testid="bubble"][data-state="answering"]');
 
-// The bubble is in constant motion, so click it via the DOM rather than a
-// pointer event (which would wait forever for the element to be "stable").
+// Input is always visible — no tap required.
 export async function pop(page: Page) {
-  const bubble = fallingBubble(page);
-  await expect(bubble).toBeVisible();
-  await bubble.evaluate((el) => (el as HTMLElement).click());
   await expect(page.getByTestId("answer-input")).toBeVisible();
 }
 

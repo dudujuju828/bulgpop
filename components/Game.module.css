@@ -505,10 +505,10 @@
 
 /* ---------- answer dock ---------- */
 .dock {
-  min-height: 96px;
+  min-height: 80px;
   margin: 0 8px 0;
   /* bottom padding absorbs the iPhone home-bar safe area inset */
-  padding: 12px 18px max(12px, env(safe-area-inset-bottom));
+  padding: 8px 14px max(8px, env(safe-area-inset-bottom));
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.78);
   box-shadow: 0 14px 34px rgba(70, 40, 130, 0.14);
@@ -524,7 +524,7 @@
 .answer {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   animation: popin 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .promptRow {

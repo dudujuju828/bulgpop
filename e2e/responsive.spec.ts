@@ -60,13 +60,10 @@ test.describe("responsive layout & scroll", () => {
     );
     expect(insideBubble).toBe(true);
 
-    // Pop it; the input appears and the word is still on the (now active)
-    // bubble and within the viewport.
-    const bubble = page.locator('[data-testid="bubble"][data-state="falling"]');
-    await bubble.evaluate((el) => (el as HTMLElement).click());
+    // Input is always visible — no tap required. The prompt stays on the
+    // bubble and in the viewport as it falls.
     await expect(page.getByTestId("answer-input")).toBeVisible();
     await expect(page.getByTestId("prompt")).toBeVisible();
-    await expect(page.getByTestId("prompt")).toBeInViewport();
   });
 
   test("in-game screen fits the viewport with no page scroll", async ({

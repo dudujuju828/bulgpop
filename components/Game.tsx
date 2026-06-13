@@ -289,7 +289,7 @@ export default function Game() {
         size,
         font,
       });
-      setBubbleState("falling");
+      setBubbleState("answering");
     },
     [diffId, dirMode],
   );
@@ -389,24 +389,6 @@ export default function Game() {
         raf = requestAnimationFrame(step);
         return;
       }
-      // While the user is typing, freeze the bubble within the visible play
-      // area. On mobile the on-screen keyboard shrinks --vvh which collapses
-      // the play area; without this the floor moves up and triggers a miss.
-      // Also ensures the bubble is visible if it was popped before entering
-      // the play area from the top (y < 0).
-      if (bubbleState === "answering") {
-        const minY = 0;
-        const maxY = Math.max(minY, area.clientHeight - sizeRef.current - 8);
-        let target = yRef.current;
-        if (target < minY) target = minY;
-        else if (target > maxY) target = maxY;
-        if (target !== yRef.current) {
-          yRef.current = target;
-          setY(target);
-        }
-        raf = requestAnimationFrame(step);
-        return;
-      }
       if (last === null) last = ts;
       const dt = Math.min((ts - last) / 1000, 0.05);
       last = ts;
@@ -475,14 +457,6 @@ export default function Game() {
   }, [bubbleState]);
 
   // ---- actions ----------------------------------------------------------
-  const popBubble = useCallback(() => {
-    if (bubbleState !== "falling" || !round) return;
-    beep(680, 0.12, "sine", 0.2);
-    // Speak the prompt only when Bulgarian is the prompt (won't spoil EN→BG).
-    if (round.dir === "bg2en") speakBg(round.word.cyr);
-    setBubbleState("answering");
-  }, [bubbleState, round, beep, speakBg]);
-
   const submit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -701,7 +675,7 @@ export default function Game() {
                 ))}
               </div>
             )}
-            {(bubbleState === "falling" || bubbleState === "answering") && (
+            {bubbleState === "answering" && (
               <button
                 className={`${styles.pauseBtn} ${paused ? styles.pauseBtnActive : ""}`}
                 onClick={togglePause}
@@ -734,12 +708,10 @@ export default function Game() {
                 </button>
               </div>
             )}
-            {round && (bubbleState === "falling" || bubbleState === "answering") && (
-              <button
+            {round && bubbleState === "answering" && (
+              <div
                 key={round.id}
-                className={`${styles.bubble} ${styles[round.color]} ${
-                  bubbleState === "answering" ? styles.bubbleActive : ""
-                }`}
+                className={`${styles.bubble} ${styles[round.color]} ${styles.bubbleActive}`}
                 style={{
                   left: `${round.x}%`,
                   top: `${y}px`,
@@ -747,17 +719,15 @@ export default function Game() {
                   height: round.size,
                   ["--bubble-font" as string]: `${round.font}px`,
                 }}
-                onClick={popBubble}
                 aria-label={`Bubble: ${prompt}`}
                 data-testid="bubble"
-                data-state={bubbleState}
-                disabled={bubbleState !== "falling"}
+                data-state="answering"
               >
                 <span className={styles.gloss} aria-hidden />
                 <span className={styles.bubbleWord} data-testid="prompt">
                   {prompt}
                 </span>
-              </button>
+              </div>
             )}
 
             {feedback &&
@@ -830,9 +800,6 @@ export default function Game() {
           </div>
 
           <div className={styles.dock}>
-            {bubbleState === "falling" && (
-              <p className={styles.hint}>🫧 Tap the bubble, then type the answer!</p>
-            )}
             {bubbleState === "answering" && round && (
               <div className={styles.answer}>
                 <div className={styles.promptRow}>
@@ -869,12 +836,13 @@ export default function Game() {
                     className={styles.input}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="type here…"
+                    placeholder="pop! type here…"
                     data-testid="answer-input"
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
                     spellCheck={false}
+                    autoFocus
                   />
                   <button type="submit" className={styles.go}>
                     pop ✓
