@@ -14,6 +14,16 @@ const DIFFICULTIES = {
 } as const;
 type DiffId = keyof typeof DIFFICULTIES;
 
+// Fall duration presets: user-facing labels map to target seconds for a bubble
+// to cross the play area. These override the difficulty's `base` px/s value.
+const FALL_PRESETS = {
+  relaxed: { label: "Relaxed", sub: "~18s", seconds: 18 },
+  normal:  { label: "Normal",  sub: "~10s", seconds: 10 },
+  brisk:   { label: "Brisk",   sub: "~6s",  seconds: 6  },
+  fast:    { label: "Fast",    sub: "~4s",  seconds: 4  },
+} as const;
+type FallPreset = keyof typeof FALL_PRESETS;
+
 const DIRECTIONS = [
   { id: "en2bg", label: "EN → BG", sub: "type Bulgarian" },
   { id: "bg2en", label: "BG → EN", sub: "type English" },
@@ -62,6 +72,9 @@ export default function Game() {
   const [theme, setTheme] = useState<Theme | null>(null);
   const [diffId, setDiffId] = useState<DiffId>("normal");
   const [dirMode, setDirMode] = useState<DirMode>("en2bg");
+  const [fallPreset, setFallPreset] = useState<FallPreset>("normal");
+  const [steadySpeed, setSteadySpeed] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
 
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
@@ -69,6 +82,8 @@ export default function Game() {
   const [maxLives, setMaxLives] = useState(3);
   const [streak, setStreak] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [hintText, setHintText] = useState<string | null>(null);
 
   const [summary, setSummary] = useState<{
     seen: number;
@@ -95,6 +110,10 @@ export default function Game() {
   const lastWordRef = useRef<string>("");
   const audioRef = useRef<AudioContext | null>(null);
   const bgVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const pausedRef = useRef(false);
+  const zenModeRef = useRef(false);
+  const fallPresetRef = useRef<FallPreset>("normal");
+  const steadyRef = useRef(false);
   const statsRef = useRef<{ seen: number; correct: number; missed: Missed[] }>({
     seen: 0,
     correct: 0,
@@ -175,12 +194,26 @@ export default function Game() {
   const ttsAvailable = () =>
     typeof window !== "undefined" && !!window.speechSynthesis;
 
-  // ---- best score -------------------------------------------------------
+  // ---- best score + persisted settings ----------------------------------
   useEffect(() => {
     const saved = Number(localStorage.getItem("bulgapop-best") || 0);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe load
     if (saved) setBest(saved);
+
+    const preset = localStorage.getItem("bulgapop-fall-preset") as FallPreset | null;
+    if (preset && preset in FALL_PRESETS) setFallPreset(preset);
+
+    const steady = localStorage.getItem("bulgapop-steady-speed");
+    if (steady !== null) setSteadySpeed(steady === "true");
+
+    const zen = localStorage.getItem("bulgapop-zen-mode");
+    if (zen !== null) setZenMode(zen === "true");
   }, []);
+
+  // Persist settings when they change.
+  useEffect(() => { localStorage.setItem("bulgapop-fall-preset", fallPreset); }, [fallPreset]);
+  useEffect(() => { localStorage.setItem("bulgapop-steady-speed", String(steadySpeed)); }, [steadySpeed]);
+  useEffect(() => { localStorage.setItem("bulgapop-zen-mode", String(zenMode)); }, [zenMode]);
 
   // ---- keep the game sized to the *visible* viewport --------------------
   // When the on-screen keyboard opens (iPad/phone portrait) the visual
@@ -209,9 +242,17 @@ export default function Game() {
     (t: Theme) => {
       const cfg = DIFFICULTIES[diffId];
       roundCountRef.current += 1;
+
+      // Compute base speed from the user's target fall duration. Fall back to
+      // 450 px for the first bubble (before the play area is measured).
+      const areaH = playRef.current?.clientHeight ?? 450;
+      const fallSecs = FALL_PRESETS[fallPresetRef.current].seconds;
+      const baseSpeed = areaH / fallSecs;
+      const rampPerRound = steadyRef.current ? 0 : cfg.ramp;
+      const maxSpeed = steadyRef.current ? baseSpeed : cfg.max;
       speedRef.current = Math.min(
-        cfg.base + roundCountRef.current * cfg.ramp,
-        cfg.max,
+        baseSpeed + roundCountRef.current * rampPerRound,
+        maxSpeed,
       );
 
       // Weighted pick: struggled words weigh more; the previous word is
@@ -237,6 +278,7 @@ export default function Game() {
       yRef.current = -size;
       setY(-size);
       setInput("");
+      setHintText(null);
       setFeedback(null);
       setRound({
         id: roundCountRef.current,
@@ -269,6 +311,7 @@ export default function Game() {
       lastWordRef.current = "";
       weightsRef.current = new Map();
       statsRef.current = { seen: 0, correct: 0, missed: [] };
+      setPaused(false);
       setPhase("playing");
       spawn(t);
     },
@@ -294,11 +337,15 @@ export default function Game() {
         return;
       }
 
-      // wrong or miss: lose a life, boost this word, force a retype (unless
-      // this was the final life — then end the run).
+      // wrong or miss: boost word weight; in Zen mode just show feedback (no
+      // life loss); otherwise lose a life and force a retype.
       statsRef.current.missed.push({ word: round.word, dir: round.dir, type });
       w.set(en, Math.min(WEIGHT_MAX, (w.get(en) ?? WEIGHT_BASE) + WEIGHT_ON_MISS));
       setStreak(0);
+      if (zenModeRef.current) {
+        setBubbleState("feedback");
+        return;
+      }
       const over = lives - 1 <= 0;
       gameOverRef.current = over;
       setLives(lives - 1);
@@ -319,6 +366,10 @@ export default function Game() {
     resolveRoundRef.current = resolveRound;
     nextRoundRef.current = nextRound;
     scoreRef.current = score;
+    pausedRef.current = paused;
+    zenModeRef.current = zenMode;
+    fallPresetRef.current = fallPreset;
+    steadyRef.current = steadySpeed;
   });
 
   // ---- falling animation (runs while falling AND while answering) -------
@@ -330,6 +381,11 @@ export default function Game() {
     const step = (ts: number) => {
       const area = playRef.current;
       if (!area) {
+        raf = requestAnimationFrame(step);
+        return;
+      }
+      if (pausedRef.current) {
+        last = ts; // reset so there's no dt jump on resume
         raf = requestAnimationFrame(step);
         return;
       }
@@ -357,7 +413,8 @@ export default function Game() {
   useEffect(() => {
     if (bubbleState !== "feedback" || !feedback) return;
     const sp = setTimeout(() => speakBgRef.current(feedback.word.cyr), 250);
-    const dur = feedback.type === "correct" ? 950 : 2000;
+    // Zen mode gives more reading time on wrong/miss answers.
+    const dur = feedback.type === "correct" ? 950 : (zenModeRef.current ? 3200 : 2000);
     const t = setTimeout(() => {
       if (gameOverRef.current) {
         setSummary({
@@ -440,10 +497,21 @@ export default function Game() {
 
   const quitToMenu = useCallback(() => {
     window.speechSynthesis?.cancel();
+    setPaused(false);
     setPhase("menu");
     setRound(null);
     setBubbleState("falling");
   }, []);
+
+  const togglePause = useCallback(() => setPaused((p) => !p), []);
+
+  const showHint = useCallback(() => {
+    if (!round || hintText !== null) return;
+    const expected = round.dir === "en2bg" ? round.word.bg : round.word.en;
+    setHintText(expected[0] + "…");
+    if (!zenMode) setScore((s) => Math.max(0, s - 5));
+    beep(440, 0.08, "sine", 0.1);
+  }, [round, hintText, zenMode, beep]);
 
   // ---- derived ----------------------------------------------------------
   const prompt = round
@@ -507,6 +575,49 @@ export default function Game() {
             </div>
           </div>
 
+          <div className={styles.options}>
+            <div className={styles.optGroup}>
+              <span className={styles.optLabel}>Fall Speed</span>
+              <div className={styles.segmented}>
+                {(Object.keys(FALL_PRESETS) as FallPreset[]).map((id) => (
+                  <button
+                    key={id}
+                    className={`${styles.seg} ${fallPreset === id ? styles.segOn : ""}`}
+                    aria-pressed={fallPreset === id}
+                    onClick={() => setFallPreset(id)}
+                    data-testid={`fall-preset-${id}`}
+                  >
+                    <span>{FALL_PRESETS[id].label}</span>
+                    <small>{FALL_PRESETS[id].sub}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.optGroup}>
+              <span className={styles.optLabel}>Learning</span>
+              <div className={styles.segmented}>
+                <button
+                  className={`${styles.seg} ${steadySpeed ? styles.segOn : ""}`}
+                  aria-pressed={steadySpeed}
+                  onClick={() => setSteadySpeed((s) => !s)}
+                  data-testid="steady-speed-toggle"
+                >
+                  <span>Steady</span>
+                  <small>no ramp</small>
+                </button>
+                <button
+                  className={`${styles.seg} ${zenMode ? styles.segOn : ""}`}
+                  aria-pressed={zenMode}
+                  onClick={() => setZenMode((z) => !z)}
+                  data-testid="zen-mode-toggle"
+                >
+                  <span>Zen mode</span>
+                  <small>no lives</small>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <h2 className={styles.pickLabel}>Pick a theme to start</h2>
           <div className={styles.themeGrid}>
             {THEMES.map((t) => (
@@ -542,16 +653,33 @@ export default function Game() {
               </span>
               <span className={styles.scoreLabel}>score</span>
             </div>
-            <div className={styles.lives} data-testid="lives" data-lives={lives}>
-              {Array.from({ length: maxLives }).map((_, i) => (
-                <span
-                  key={i}
-                  className={`${styles.life} ${i < lives ? "" : styles.lifeOff}`}
-                >
-                  {i < lives ? "🫧" : "·"}
-                </span>
-              ))}
-            </div>
+            {zenMode ? (
+              <div className={styles.zenIndicator} data-testid="lives" data-lives="∞">
+                ∞ zen
+              </div>
+            ) : (
+              <div className={styles.lives} data-testid="lives" data-lives={lives}>
+                {Array.from({ length: maxLives }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={`${styles.life} ${i < lives ? "" : styles.lifeOff}`}
+                  >
+                    {i < lives ? "🫧" : "·"}
+                  </span>
+                ))}
+              </div>
+            )}
+            {(bubbleState === "falling" || bubbleState === "answering") && (
+              <button
+                className={`${styles.pauseBtn} ${paused ? styles.pauseBtnActive : ""}`}
+                onClick={togglePause}
+                aria-label={paused ? "Resume" : "Pause"}
+                aria-pressed={paused}
+                data-testid="pause-btn"
+              >
+                {paused ? "▶" : "⏸"}
+              </button>
+            )}
             <button
               className={styles.mute}
               onClick={toggleMute}
@@ -566,6 +694,14 @@ export default function Game() {
           )}
 
           <div className={styles.play} ref={playRef} data-testid="play">
+            {paused && (
+              <div className={styles.pauseOverlay} data-testid="pause-overlay">
+                <span>⏸ paused</span>
+                <button onClick={togglePause} className={styles.resumeBtn}>
+                  resume ▶
+                </button>
+              </div>
+            )}
             {round && (bubbleState === "falling" || bubbleState === "answering") && (
               <button
                 key={round.id}
@@ -680,7 +816,21 @@ export default function Game() {
                       🔊
                     </button>
                   )}
+                  <button
+                    className={styles.hintBtn}
+                    onClick={showHint}
+                    type="button"
+                    data-testid="hint-btn"
+                    disabled={hintText !== null}
+                  >
+                    💡{zenMode ? " hint" : " hint (−5)"}
+                  </button>
                 </div>
+                {hintText && (
+                  <span className={styles.hintText} data-testid="hint-text">
+                    starts with: <strong>{hintText}</strong>
+                  </span>
+                )}
                 <form onSubmit={submit} className={styles.answerForm}>
                   <input
                     ref={inputRef}
@@ -743,6 +893,16 @@ export default function Game() {
                     <span className={styles.missedArrow}>→</span>
                     <span className={styles.missedBg}>{m.word.bg}</span>
                     <span className={styles.missedCyr}>{m.word.cyr}</span>
+                    {ttsAvailable() && (
+                      <button
+                        className={styles.speakSm}
+                        onClick={() => speakBg(m.word.cyr)}
+                        type="button"
+                        aria-label={`Hear ${m.word.en}`}
+                      >
+                        🔊
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

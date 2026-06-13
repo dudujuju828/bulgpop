@@ -14,6 +14,19 @@ Bulgarian is written with normal Latin letters here, so _"behind us"_ is
   2 lives, steep ramp).
 - **Direction modes** — EN → BG (type Bulgarian), BG → EN (type English), or
   Mixed (random each bubble).
+- **Fall Speed control** — Choose how long a bubble takes to drop: Relaxed
+  (~18 s), Normal (~10 s), Brisk (~6 s), or Fast (~4 s). Setting is
+  persisted across sessions. Enable **Steady** to lock the speed (disables
+  the speed ramp that normally increases over time).
+- **Zen mode** — No lives, no pressure. Wrong answers just show the
+  feedback card and advance automatically (with a longer reading window).
+  Great for calm study sessions. Toggleable in the menu; persisted.
+- **Pause** — Hit ⏸ in the HUD at any time while a bubble is falling to
+  freeze it in place. Press ▶ (or the resume button on the overlay) to
+  continue.
+- **Hint** — While answering, tap 💡 hint to reveal the first letter of the
+  expected answer. Costs 5 points in normal mode; free in Zen mode.
+  Resets on every new bubble.
 - **Pronunciation** — Bulgarian words are spoken aloud via browser text-to-speech
   (auto where it won't spoil the answer, plus a replay 🔊 button). Falls back
   silently if no Bulgarian voice is installed.
