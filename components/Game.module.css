@@ -431,8 +431,9 @@
 .bubbleActive {
   cursor: default;
   animation: bob 2.4s ease-in-out infinite, activeGlow 0.9s ease-in-out infinite;
-  /* Smooth vertical adjustment when --vvh changes (keyboard opens/closes) */
-  transition: transform 0.08s, top 0.28s ease-out;
+  /* No `top` transition: the rAF loop updates top every frame, so easing it
+     would lag the descent and leave the bubble drifting after a pause. */
+  transition: transform 0.08s;
 }
 .bubbleActive:active {
   transform: translateX(-50%);

@@ -509,7 +509,16 @@ export default function Game() {
     setBubbleState("falling");
   }, []);
 
-  const togglePause = useCallback(() => setPaused((p) => !p), []);
+  const togglePause = useCallback(
+    () =>
+      setPaused((p) => {
+        // Update the ref synchronously so the rAF loop freezes on this exact
+        // tick — otherwise the deferred effect lets the bubble drift a few px.
+        pausedRef.current = !p;
+        return !p;
+      }),
+    [],
+  );
 
   const showHint = useCallback(() => {
     if (!round || hintText !== null) return;
